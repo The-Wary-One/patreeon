@@ -1,0 +1,3 @@
+[submodule "packages/lens-protocol"]
+	path = packages/lens-protocol
+	url = git@github.com:The-Wary-One/lens-protocol.git
