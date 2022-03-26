@@ -1,0 +1,39 @@
+#+TITLE: README
+#+AUTHOR: Wary
+
+* 🌳 Patreeon
+A Patreon-like web3 Dapp powered by Lens Protocol and Superfluid.
+
+* 🏃 Quick Start
+⚠ Prerequisites:
+- [[https://nodejs.org/en/download/][node]] v16+
+- [[https://classic.yarnpkg.com/en/docs/install/][yarn]]
+- [[https://git-scm.com/downloads][git]]
+- [[https://www.docker.com/get-started/][docker]] with docker-compose
+
+Clone this repository
+#+begin_src bash
+git clone --recurse-submodules -j8 git@github.com:The-Wary-One/patreeon.git
+#+end_src
+
+In the first terminal window, start the local blockchain in the dockerized backend environment
+#+begin_src bash
+cd patreeon/packages/lens-protocol
+cp .env.example .env
+export USERID=$UID && docker-compose build && docker-compose run contracts-env bash
+npx hardhat node
+#+end_src
+
+In a second terminal window, connect to the docker container and deploy all the smart contracts
+#+begin_src bash
+cd patreeon/packages/lens-protocol
+docker exec -it $(docker ps -f ancestor=lens-protocol_contracts-env -q) bash
+npm run full-deploy-local
+#+end_src
+
+In a third terminal window, start the frontend app
+#+begin_src bash
+cd patreeon/packages/app
+npm i
+npm start
+#+end_src
