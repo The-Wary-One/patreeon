@@ -6,5 +6,7 @@
   "author": "Wary <one.should.be.wary@gmail.com>",
   "license": "AGPL-3.0-or-later",
   "private": true,
-  "packages": ["packages/*"]
+  "packages": [
+    "packages/*"
+  ]
 }
