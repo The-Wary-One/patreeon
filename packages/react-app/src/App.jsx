@@ -11,6 +11,8 @@ import {
 import { useExchangeEthPrice } from "eth-hooks/dapps/dex";
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, Route, Switch, useLocation } from "react-router-dom";
+import { Framework } from "@superfluid-finance/sdk-core";
+
 import "./App.css";
 import {
   Account,
@@ -29,7 +31,7 @@ import externalContracts from "./contracts/external_contracts";
 // contracts
 import deployedContracts from "./contracts/hardhat_contracts";
 import { Transactor, Web3ModalSetup } from "./helpers";
-import { Home, ExampleUI, Hints, Subgraph } from "./views";
+import { Home, ExampleUI, Hints } from "./views";
 import { useStaticJsonRPC } from "./hooks";
 
 const { ethers } = require("ethers");
@@ -124,6 +126,24 @@ function App(props) {
     }
     getAddress();
   }, [userSigner]);
+
+  const [sf, setSF] = useState(null);
+
+  useEffect(() => {
+    async function createFramework() {
+      if (!sf && localProvider) {
+        const framework = await Framework.create({
+          networkName: "custom",
+          dataMode: "WEB3_ONLY",
+          resolverAddress: process.env.REACT_APP_SUPERFLUID_RESOLVER_ADDRESS,
+          protocolReleaseVersion: "test",
+          provider: localProvider,
+        });
+        setSF(framework);
+      }
+    }
+    createFramework();
+  }, [localProvider]);
 
   // You can warn the user if you would like them to be on a specific network
   const localChainId = localProvider && localProvider._network && localProvider._network.chainId;
@@ -282,8 +302,11 @@ function App(props) {
           {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
           <Home
             tx={tx}
+            localProvider={localProvider}
             writeContracts={writeContracts}
             address={address}
+            targetNetwork={targetNetwork}
+            sf={sf}
             // yourLocalBalance={yourLocalBalance} readContracts={readContracts}
           />
         </Route>
@@ -347,14 +370,6 @@ function App(props) {
               blockExplorer="https://etherscan.io/"
             />
             */}
-        </Route>
-        <Route path="/subgraph">
-          <Subgraph
-            subgraphUri={props.subgraphUri}
-            tx={tx}
-            writeContracts={writeContracts}
-            mainnetProvider={mainnetProvider}
-          />
         </Route>
       </Switch>
 

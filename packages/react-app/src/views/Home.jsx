@@ -1,35 +1,24 @@
-import { useContractReader } from "eth-hooks";
 import { ethers } from "ethers";
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
 
-/**
- * web3 props can be passed from '../App.jsx' into your local view component for use
- * @param {*} yourLocalBalance balance on current network
- * @param {*} readContracts contracts from current chain already pre-loaded using ethers contract module. More here https://docs.ethers.io/v5/api/contract/contract/
- * @returns react component
- **/
+import { CreateProfileForm, CreatePostForm, SubscriptionForm } from "../components";
 
-function Home({ writeContracts, tx, address }) {
-  // you can also use hooks locally in your component of choice
-  // in this case, let's keep track of 'purpose' variable from our contract
-  const profile = {
-    to: address,
-    handle: "Athena",
-    imageURI: "",
-    // followModule: "0x8731324a6C09a1745bD15009Dc8FcceF11c05F4a",
-    followModule: ethers.constants.AddressZero,
-    followModuleData: [],
-    followNFTURI: "",
-  };
+const DEFAULT_SUBSCRIPTION_FEE = ethers.utils.parseEther("1");
+
+function Home({ localProvider, writeContracts, tx, address, sf }) {
+  const [profile, setProfile] = useState({});
+  const [post, setPost] = useState({});
 
   return (
     <div>
-      <button
-        onClick={async () => {
-          /* look how you call setPurpose on your contract: */
-          /* notice how you pass a call back for tx updates too */
-          const result = tx(writeContracts.LensHub.createProfile(profile), update => {
+      <p>Patreeon demo. Please follow the following instructions 🐸</p>
+      <br/>
+      <p>1. Create a Lens profile (USER1)</p>
+      <CreateProfileForm
+        address={address}
+        onSubmit={async data => {
+          const lensHubGovernance = await localProvider.getSigner(1);
+          const result = tx(writeContracts.LensHub.connect(lensHubGovernance).createProfile(data), async update => {
             console.log("📡 Transaction Update:", update);
             if (update && (update.status === "confirmed" || update.status === 1)) {
               console.log(" 🍾 Transaction " + update.hash + " finished!");
@@ -42,15 +31,93 @@ function Home({ writeContracts, tx, address }) {
                   parseFloat(update.gasPrice) / 1000000000 +
                   " gwei",
               );
+              const profileId = await writeContracts.LensHub.getProfileIdByHandle(data.handle);
+              const profile = { ...data, id: profileId.toString() };
+              console.log("profile: ", profile);
+              setProfile(profile);
             }
           });
           console.log("awaiting metamask/web3 confirm result...", result);
           console.log(await result);
         }}
-      >
-        {" "}
-        Click
-      </button>
+      />
+      {profile?.id && <p>Your profile id is: {profile.id.toString()}</p>}
+      <br/>
+      <p>2. Create a post</p>
+      <CreatePostForm
+        profile={profile}
+        collectModule={writeContracts.EmptyCollectModule?.address}
+        referenceModule={writeContracts.FollowerOnlyReferenceModule?.address}
+        onSubmit={async data => {
+          const result = tx(writeContracts.LensHub.post(data), async update => {
+            console.log("📡 Transaction Update:", update);
+            if (update && (update.status === "confirmed" || update.status === 1)) {
+              console.log(" 🍾 Transaction " + update.hash + " finished!");
+              console.log(
+                " ⛽️ " +
+                  update.gasUsed +
+                  "/" +
+                  (update.gasLimit || update.gas) +
+                  " @ " +
+                  parseFloat(update.gasPrice) / 1000000000 +
+                  " gwei",
+              );
+              const postId = await writeContracts.LensHub.getPubCount(data.profileId);
+              const post = { ...data, id: postId };
+              console.log("post: ", post);
+              setPost(post);
+            }
+          });
+          console.log("awaiting metamask/web3 confirm result...", result);
+          console.log(await result);
+        }}
+      />
+      {post?.id && <p>Your post id is: {post.id.toString()}</p>}
+      <br/>
+      <p>3. Create a new user (i.e. USER2) by opening this app in a private window and create a profile with 1.</p>
+      <br/>
+      <p>4. Try to comment on USER1 post. It should fail because you need to subscribe to them first!</p>
+
+      <br/>
+      <p>5. Subscribe to them. It will first create a constant flow agreement to them using superfluid then it will follow them on Lens</p>
+      <SubscriptionForm
+        currency={writeContracts.Currency?.address}
+        amount={DEFAULT_SUBSCRIPTION_FEE}
+        onSubmit={async data => {
+          const lensHubGovernance = await localProvider.getSigner(1);
+          const currency = await sf.loadSuperToken(writeContracts.Currency.address);
+          const tx1 = await currency.transfer({ to: address, amount: ethers.utils.parseEther("10") }).exec(lensHubGovernance);
+          await tx1.wait();
+          const recipient = await writeContracts.SuperfluidCFAFollowModule.getProfileData(data.profileId);
+          console.log("recipient", recipient);
+          //await sf.cfaV1.createFlow({
+          //  sender: address,
+          //  receiver,
+          //})
+          //const result = tx(writeContracts.Currency.connect(lensHubGovernance).transfer(address, ethers.utils.parseEther("10")), async update => {
+          //  console.log("📡 Transaction Update:", update);
+          //  if (update && (update.status === "confirmed" || update.status === 1)) {
+          //    console.log(" 🍾 Transaction " + update.hash + " finished!");
+          //    console.log(
+          //      " ⛽️ " +
+          //        update.gasUsed +
+          //        "/" +
+          //        (update.gasLimit || update.gas) +
+          //        " @ " +
+          //        parseFloat(update.gasPrice) / 1000000000 +
+          //        " gwei",
+          //    );
+          //    const post = { ...data, id: postId };
+          //    console.log("post: ", post);
+          //    setPost(post);
+          //  }
+          //});
+          //console.log("awaiting metamask/web3 confirm result...", result);
+          //console.log(await result);
+        }}
+      />
+      <br/>
+      <p>6. Now you comment on USER1 post using 4.</p>
     </div>
   );
 }
